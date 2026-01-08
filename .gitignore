@@ -1,0 +1,16 @@
+# virtual environment
+venv/
+
+# python junk
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# logs
+Logs/
+*.log
+
+
+# env files
+.env
