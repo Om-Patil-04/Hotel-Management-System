@@ -12,7 +12,7 @@ from config.paths_config import (
     PROCESSED_DIR
 )
 from utils.common_functions import read_yaml, load_data
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import OrdinalEncoder
 from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
@@ -25,9 +25,10 @@ class DataProcessor:
         self.test_path = test_path
         self.processed_dir = processed_dir
         self.config = read_yaml(config_path)
+        self.encoder = None
         os.makedirs(self.processed_dir, exist_ok=True)
 
-    def preporocess_data(self, df):
+    def preprocess_data(self, df, fit_encoder=False):
         try:
             logger.info("Starting data processing step")
 
@@ -39,10 +40,11 @@ class DataProcessor:
             cat_cols = self.config["data_preprocessing"]["categorical_columns"]
             num_cols = self.config["data_preprocessing"]["numerical_columns"]
 
-            le = LabelEncoder()
-
-            for col in cat_cols:
-                df[col] = le.fit_transform(df[col])
+            if fit_encoder:
+                self.encoder = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
+                df[cat_cols] = self.encoder.fit_transform(df[cat_cols])
+            else:
+                df[cat_cols] = self.encoder.transform(df[cat_cols])
 
             skew_threshold = self.config["data_preprocessing"]["skewness_threshold"]
 
@@ -89,7 +91,6 @@ class DataProcessor:
 
             model = RandomForestClassifier(
                 n_estimators=300,
-                max_depth=None,
                 random_state=42,
                 class_weight="balanced",
                 n_jobs=-1
@@ -124,11 +125,10 @@ class DataProcessor:
             train_df = load_data(self.train_path)
             test_df = load_data(self.test_path)
 
-            train_df = self.preporocess_data(train_df)
-            test_df = self.preporocess_data(test_df)
+            train_df = self.preprocess_data(train_df, fit_encoder=True)
+            test_df = self.preprocess_data(test_df, fit_encoder=False)
 
             train_df = self.balance_data(train_df)
-
             train_df = self.select_features(train_df)
 
             test_df = test_df[train_df.columns]
@@ -142,8 +142,11 @@ class DataProcessor:
             logger.error(f"Error in data processing pipeline: {e}")
             raise CustomException("Data processing pipeline failed")
 
-        
-
 if __name__ == "__main__":
-    processor = DataProcessor(TRAIN_FILE_PATH, TEST_FILE_PATH,PROCESSED_DIR,CONFIG_PATH)
+    processor = DataProcessor(
+        TRAIN_FILE_PATH,
+        TEST_FILE_PATH,
+        PROCESSED_DIR,
+        CONFIG_PATH
+    )
     processor.run()
