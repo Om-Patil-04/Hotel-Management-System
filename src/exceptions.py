@@ -1,18 +1,16 @@
 import sys
-import traceback
 
 class CustomException(Exception):
-    def __init__(self, error_message: str, error_detail=sys):
+    def __init__(self, error_message: str, error_detail=None):
         super().__init__(error_message)
-
-        self.error_message = self.get_detailed_error_message(error_message, error_detail)
+        self.error_message = self.get_detailed_error_message(error_message)
 
     @staticmethod
-    def get_detailed_error_message(error_message: str, error_detail) -> str:
-        _, _, exc_tb = error_detail.exc_info()
+    def get_detailed_error_message(error_message: str) -> str:
+        _, _, exc_tb = sys.exc_info()
 
         if exc_tb is None:
-            return error_message  
+            return error_message
 
         file_name = exc_tb.tb_frame.f_code.co_filename
         line_number = exc_tb.tb_lineno
@@ -22,6 +20,6 @@ class CustomException(Exception):
             f"at line number: {line_number} "
             f"with message: {error_message}"
         )
-    
+
     def __str__(self):
         return self.error_message
