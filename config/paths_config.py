@@ -1,5 +1,7 @@
 import os
 
+## Data Artifacts
+
 RAW_DIR = "artifacts/raw"
 RAW_FILE_PATH = os.path.join(RAW_DIR, "Hotel_Reservations.csv")
 
@@ -14,3 +16,8 @@ PROCESSED_DIR = "artifacts/processed"
 PROCESSED_TRAIN_DATA_PATH = os.path.join(PROCESSED_DIR, "processed_train.csv")
 
 PROCESSED_TEST_DATA_PATH = os.path.join(PROCESSED_DIR, "processed_test.csv")
+
+## Model Artifacts
+
+MODEL_OUTPUT_PATH = "models/best_model/model.pkl"
+
