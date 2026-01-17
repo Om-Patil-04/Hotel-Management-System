@@ -11,6 +11,14 @@ __pycache__/
 Logs/
 *.log
 
-
 # env files
 .env
+
+# build
+build/
+
+# mlrun
+mlruns/
+
+#db
+mlflow.db
