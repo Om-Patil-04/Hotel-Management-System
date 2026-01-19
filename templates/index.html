@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hotel Prediction AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-deep: #050511;
+      --glass-surface: rgba(20, 20, 35, 0.7);
+      --glass-highlight: rgba(255, 255, 255, 0.08);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      
+      --primary: #8b5cf6;       
+      --secondary: #06b6d4;     
+      --accent: #10b981;        
+      --danger: #f43f5e;        
+      --neon-glow: 0 0 15px rgba(139, 92, 246, 0.4);
+      
+      --text-main: #ffffff;
+      --text-muted: #94a3b8;
+      
+      --font-stack: 'Outfit', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    [data-theme="light"] {
+      --bg-deep: #eef2ff;
+      --glass-surface: rgba(255, 255, 255, 0.65);
+      --glass-highlight: rgba(255, 255, 255, 0.8);
+      --glass-border: rgba(0, 0, 0, 0.06);
+      --primary: #6366f1;
+      --secondary: #0ea5e9;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+    }
+
+    * { box-sizing: border-box; outline: none; }
+    
+    body {
+      margin: 0;
+      background-color: var(--bg-deep);
+      font-family: var(--font-stack);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(90px);
+      z-index: -1;
+      opacity: 0.6;
+      animation: float 15s infinite ease-in-out;
+    }
+    .blob-1 { width: 50vw; height: 50vw; background: radial-gradient(circle, var(--primary), transparent); top: -10%; left: -10%; }
+    .blob-2 { width: 45vw; height: 45vw; background: radial-gradient(circle, var(--secondary), transparent); bottom: -10%; right: -10%; animation-delay: -5s; }
+    
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(20px, -20px) scale(1.05); }
+    }
+
+    /* --- LAYOUT --- */
+    .app-container {
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .glass-panel {
+      background: var(--glass-surface);
+      backdrop-filter: blur(50px);
+      -webkit-backdrop-filter: blur(50px);
+      border: 1px solid var(--glass-border);
+      border-top: 1px solid rgba(255,255,255,0.2); 
+      border-radius: 30px;
+      padding: 50px;
+      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
+      position: relative;
+      overflow: hidden;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center; 
+      padding-bottom: 40px;
+      border-bottom: 1px solid var(--glass-border);
+      margin-bottom: 40px;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .header-content h1 {
+      font-size: 3rem;
+      font-weight: 800;
+      margin: 0 0 5px 0;
+      letter-spacing: -2px;
+      background: linear-gradient(120deg, #fff, var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 20px rgba(6, 182, 212, 0.3));
+    }
+    
+    [data-theme="light"] h1 {
+      background: linear-gradient(120deg, var(--primary), var(--secondary));
+      -webkit-background-clip : text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 1rem;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+
+    .compute-widget {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 12px 20px;
+      min-width: 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .terminal-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .pulse-dot {
+      width: 8px; height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent);
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse { 0%{opacity:1;} 50%{opacity:0.3;} 100%{opacity:1;} }
+
+    .neural-bar-container {
+      display: flex; gap: 3px; height: 6px; align-items: flex-end;
+    }
+
+    .neural-bar {
+      flex: 1; background: var(--secondary); border-radius: 2px;
+      animation: equalizer 1s ease-in-out infinite; opacity: 0.6;
+    }
+    .neural-bar:nth-child(1) { animation-duration: 0.8s; height: 40%; }
+    .neural-bar:nth-child(2) { animation-duration: 1.1s; height: 70%; }
+    .neural-bar:nth-child(3) { animation-duration: 0.9s; height: 100%; }
+    .neural-bar:nth-child(4) { animation-duration: 1.3s; height: 50%; }
+    .neural-bar:nth-child(5) { animation-duration: 0.7s; height: 80%; }
+    .neural-bar:nth-child(6) { animation-duration: 1.0s; height: 30%; }
+
+    @keyframes equalizer { 0%, 100% { transform: scaleY(0.5); } 50% { transform: scaleY(1); } }
+
+    .form-section { margin-bottom: 40px; }
+
+    .section-header {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 25px;
+    }
+    .section-dot {
+      width: 8px; height: 8px; background: var(--primary);
+      border-radius: 50%; box-shadow: 0 0 10px var(--primary);
+    }
+    .section-title {
+      font-size: 0.9rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 2px; color: var(--text-main);
+    }
+
+    .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 25px; }
+
+    .input-wrapper { position: relative; }
+
+    input, select {
+      width: 100%;
+      background: rgba(10, 10, 20, 0.4);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 18px 20px;
+      color: var(--text-main);
+      font-size: 1rem;
+      font-family: inherit;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      appearance: none;
+    }
+    
+    select option { background-color: #050511; color: #ffffff; padding: 10px; }
+    [data-theme="light"] input, [data-theme="light"] select { background: rgba(255,255,255,0.6); color: var(--text-main); }
+    [data-theme="light"] select option { background-color: #ffffff; color: #000000; }
+
+    input:focus, select:focus {
+      background: rgba(20, 20, 35, 0.8); border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15), var(--neon-glow);
+      transform: translateY(-2px);
+    }
+
+    .floating-label {
+      position: absolute; left: 20px; top: -10px;
+      background: var(--bg-deep); padding: 0 8px;
+      font-size: 0.75rem; color: var(--secondary);
+      font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; border-radius: 4px;
+      pointer-events: none; z-index: 2;
+    }
+    [data-theme="light"] .floating-label { background: var(--bg-deep); }
+
+    .validation-dot {
+      position: absolute; right: 20px; top: 50%;
+      transform: translateY(-50%); width: 6px; height: 6px;
+      border-radius: 50%; background: var(--glass-border); transition: 0.3s;
+    }
+    input:valid ~ .validation-dot, select:valid ~ .validation-dot {
+      background: var(--accent); box-shadow: 0 0 8px var(--accent);
+      transform: translateY(-50%) scale(1.5);
+    }
+
+    .action-bar {
+      display: flex; justify-content: flex-end; gap: 20px;
+      margin-top: 50px; padding-top: 30px;
+      border-top: 1px solid var(--glass-border);
+    }
+
+    .btn-glass {
+      background: transparent; border: 1px solid var(--glass-border);
+      color: var(--text-muted); padding: 15px 30px; border-radius: 12px;
+      font-weight: 600; letter-spacing: 1px; cursor: pointer; transition: 0.3s;
+    }
+    .btn-glass:hover { color: var(--text-main); border-color: var(--text-main); }
+
+    .btn-neon {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border: none; color: white; padding: 15px 40px; border-radius: 12px;
+      font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+      cursor: pointer; box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+      transition: 0.3s; position: relative; overflow: hidden;
+    }
+    .btn-neon:hover { transform: translateY(-2px); box-shadow: 0 20px 40px rgba(139, 92, 246, 0.5); }
+
+    .result-container {
+      margin-top: 40px;
+      animation: slideUp 0.6s ease-out forwards;
+      perspective: 1000px;
+      display: none; 
+    }
+
+    .result-container.active {
+        display: block;
+    }
+
+    @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+    .result-card {
+      background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border);
+      border-radius: 20px; padding: 30px; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .result-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+    }
+
+    .result-value {
+      font-size: 2.5rem; font-weight: 800; margin: 0;
+      display: inline-block; padding: 10px 30px; border-radius: 8px; margin-top: 15px;
+    }
+
+    .status-ok {
+      color: var(--accent);
+      text-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      background: rgba(16, 185, 129, 0.1);
+    }
+    .status-cancel {
+      color: var(--danger);
+      text-shadow: 0 0 20px rgba(244, 63, 94, 0.4);
+      border: 1px solid rgba(244, 63, 94, 0.2);
+      background: rgba(244, 63, 94, 0.1);
+    }
+
+    .theme-trigger {
+      position: fixed; top: 20px; right: 20px;
+      background: var(--glass-surface); backdrop-filter: blur(10px);
+      border: 1px solid var(--glass-border); width: 40px; height: 40px;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; z-index: 100; font-size: 1.2rem;
+    }
+  </style>
+</head>
+<body data-theme="dark">
+
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <canvas id="stars" style="position: fixed; inset: 0; z-index: -1; pointer-events: none;"></canvas>
+
+  <button class="theme-trigger" id="themeToggle">◑</button>
+
+  <div class="app-container">
+    <div class="glass-panel">
+      
+      <header>
+        <div class="header-content">
+          <h1>Hotel Prediction AI</h1>
+          <div class="subtitle">Advanced Stochastic Booking Intelligence Engine</div>
+        </div>
+
+        <div class="compute-widget">
+          <div class="terminal-row">
+            <span id="sysMsg">SYSTEM IDLE</span>
+            <div class="pulse-dot"></div>
+          </div>
+          <div class="neural-bar-container">
+            <div class="neural-bar"></div>
+            <div class="neural-bar"></div>
+            <div class="neural-bar"></div>
+            <div class="neural-bar"></div>
+            <div class="neural-bar"></div>
+            <div class="neural-bar"></div>
+          </div>
+          <div class="terminal-row" style="color: var(--text-muted); font-size: 0.65rem; margin-top:4px;">
+            <span id="memStat">MEM: 40%</span>
+            <span id="cpuStat">NET: OK</span>
+          </div>
+        </div>
+      </header>
+
+      <form id="predictionEngine" method="POST" action="/" novalidate>
+        
+        <div class="form-section">
+          <div class="section-header">
+            <div class="section-dot"></div>
+            <div class="section-title">01. Booking Parameters</div>
+          </div>
+          <div class="grid-3">
+            <div class="input-wrapper">
+              <input type="number" id="lead_time" name="lead_time" min="0" required placeholder=" " />
+              <div class="floating-label">Lead Time (Days)</div>
+              <div class="validation-dot"></div>
+            </div>
+            <div class="input-wrapper">
+              <input type="number" id="special_requests" name="no_of_special_requests" min="0" max="5" required placeholder=" " />
+              <div class="floating-label">Special Requests</div>
+              <div class="validation-dot"></div>
+            </div>
+            <div class="input-wrapper">
+              <input type="number" id="avg_price" name="avg_price_per_room" min="0" step="1" required placeholder=" " />
+              <div class="floating-label">Avg Price ($)</div>
+              <div class="validation-dot"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="section-header">
+            <div class="section-dot" style="background: var(--secondary); box-shadow: 0 0 10px var(--secondary);"></div>
+            <div class="section-title">02. Temporal & Segment</div>
+          </div>
+          <div class="grid-4">
+            <div class="input-wrapper">
+              <select id="arrival_month" name="arrival_month" required>
+                <option value="" disabled selected></option>
+                <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+                <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+                <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+                <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+              </select>
+              <div class="floating-label">Arrival Month</div>
+              <div class="validation-dot"></div>
+            </div>
+            <div class="input-wrapper">
+              <select id="arrival_date" name="arrival_date" required>
+                <option value="" disabled selected></option>
+              </select>
+              <div class="floating-label">Arrival Date</div>
+              <div class="validation-dot"></div>
+            </div>
+            <div class="input-wrapper">
+              <select id="market_segment" name="market_segment_type" required>
+                <option value="" disabled selected></option>
+                <option value="Online">Online (→ 4)</option>
+                <option value="Offline">Offline (→ 3)</option>
+                <option value="Corporate">Corporate (→ 2)</option>
+                <option value="Aviation">Aviation (→ 1)</option>
+                <option value="Complementary">Complementary (→ 0)</option>
+              </select>
+              <div class="floating-label">Market Segment</div>
+              <div class="validation-dot"></div>
+            </div>
+            <div class="input-wrapper">
+              <select id="room_type" name="room_type_reserved" required>
+                <option value="" disabled selected></option>
+                <option value="Room Type 1">Room Type 1 (→ 0)</option>
+                <option value="Room Type 2">Room Type 2 (→ 1)</option>
+                <option value="Room Type 3">Room Type 3 (→ 2)</option>
+                <option value="Room Type 4">Room Type 4 (→ 3)</option>
+              </select>
+              <div class="floating-label">Room Type</div>
+              <div class="validation-dot"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="section-header">
+            <div class="section-dot" style="background: var(--accent); box-shadow: 0 0 10px var(--accent);"></div>
+            <div class="section-title">03. Stay Details</div>
+          </div>
+          <div class="grid-3">
+            <div class="input-wrapper">
+              <input type="number" id="week_nights" name="no_of_week_nights" min="0" required placeholder=" " />
+              <div class="floating-label">Week Nights</div>
+              <div class="validation-dot"></div>
+            </div>
+            <div class="input-wrapper">
+              <input type="number" id="weekend_nights" name="no_of_weekend_nights" min="0" required placeholder=" " />
+              <div class="floating-label">Weekend Nights</div>
+              <div class="validation-dot"></div>
+            </div>
+            <div class="input-wrapper">
+              <select id="meal_plan" name="type_of_meal_plan" required>
+                <option value="" disabled selected></option>
+                <option value="No Meal Plan">No Meal Plan (→ 0)</option>
+                <option value="Breakfast Only">Breakfast Only (→ 0)</option>
+                <option value="Breakfast + Dinner">Breakfast + Dinner (→ 1)</option>
+                <option value="All Meals">All Meals (→ 3)</option>
+              </select>
+              <div class="floating-label">Meal Plan</div>
+              <div class="validation-dot"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <button type="button" class="btn-glass" onclick="document.getElementById('predictionEngine').reset()">RESET DATA</button>
+          <button type="submit" class="btn-neon" id="predictBtn">INITIALIZE PREDICTION</button>
+        </div>
+
+      </form>
+
+      
+      {% if prediction or error %}
+      <div class="result-container active" id="resultContainer">
+        <div class="result-card">
+          
+          {% if error %}
+            <div class="result-header" style="color: var(--danger);">SYSTEM ALERT</div>
+            <div class="result-value" style="font-size: 1.2rem; border-color: var(--danger); color: var(--danger);">{{ error }}</div>
+          
+          {% else %}
+            <div class="result-header">PROBABILISTIC OUTCOME</div>
+            
+            {% if prediction == "Not Canceled" %}
+              <div class="result-value status-ok">
+                <span style="margin-right:10px;">✓</span> NOT CANCELED
+              </div>
+              <p style="color: var(--accent); margin-top: 15px; font-size: 0.9rem;">
+                Confidence: High • Guest likely to arrive
+              </p>
+            {% else %}
+              <div class="result-value status-cancel">
+                <span style="margin-right:10px;">⚠</span> CANCELED
+              </div>
+              <p style="color: var(--danger); margin-top: 15px; font-size: 0.9rem;">
+                Confidence: High • Risk of cancellation detected
+              </p>
+            {% endif %}
+
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('stars');
+    const ctx = canvas.getContext('2d');
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize);
+    resize();
+    let stars = [];
+    for(let i=0; i<150; i++) {
+      stars.push({
+        x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+        size: Math.random() * 1.5, opacity: Math.random(), speed: Math.random() * 0.2
+      });
+    }
+    function animate() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = 'white';
+      stars.forEach(star => {
+        ctx.globalAlpha = star.opacity;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI*2);
+        ctx.fill();
+        star.y -= star.speed;
+        if(star.y < 0) star.y = canvas.height;
+      });
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    const msgs = ["AWAITING INPUT", "MONITORING", "NEURAL LINK ACTIVE", "SYNCING"];
+    const sysMsg = document.getElementById("sysMsg");
+    const memStat = document.getElementById("memStat");
+    setInterval(() => {
+      sysMsg.innerText = msgs[Math.floor(Math.random() * msgs.length)];
+      memStat.innerText = `MEM: ${Math.floor(Math.random() * 40) + 20}%`;
+    }, 2500);
+
+    const dateSelect = document.getElementById('arrival_date');
+    for(let i=1; i<=31; i++){
+        let opt = document.createElement('option');
+        opt.value = i; opt.innerHTML = i;
+        dateSelect.appendChild(opt);
+    }
+
+    const toggle = document.getElementById('themeToggle');
+    toggle.addEventListener('click', () => {
+        const body = document.body;
+        body.setAttribute('data-theme', body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    });
+
+    document.getElementById('predictionEngine').addEventListener('submit', (e) => {
+        const btn = document.getElementById('predictBtn');
+        btn.innerHTML = "CALCULATING <span class='pulse-dot' style='display:inline-block; margin-left:10px;'></span>";
+        btn.style.opacity = "0.8";
+        sysMsg.innerText = "PROCESSING BATCH...";
+    });
+  </script>
+</body>
+</html>
