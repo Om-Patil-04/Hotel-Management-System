@@ -22,3 +22,5 @@ mlruns/
 
 #db
 mlflow.db
+
+models/
