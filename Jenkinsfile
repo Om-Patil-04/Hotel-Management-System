@@ -2,11 +2,12 @@ pipeline {
     agent any
 
     environment {
-        VENV_DIR    = 'venv'
         GCP_PROJECT = 'tough-bindery-483312-t2'
+        IMAGE_NAME  = "gcr.io/${GCP_PROJECT}/hotel-management-system"
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 git branch: 'main',
@@ -15,32 +16,23 @@ pipeline {
             }
         }
 
-        stage('Setup Virtual Environment & Install Dependencies') {
-            steps {
-                sh '''
-                    python3 -m venv ${VENV_DIR}
-                    . ${VENV_DIR}/bin/activate
-                    pip install --upgrade pip setuptools
-                    pip install -r requirements.txt
-                '''
-            }
-        }
-
         stage('Build & Push Docker Image to GCR') {
             steps {
-                withCredentials([file(credentialsId: 'gcp-key', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
+                withCredentials([
+                    file(credentialsId: 'gcp-key', variable: 'GOOGLE_APPLICATION_CREDENTIALS')
+                ]) {
                     sh '''
-                        gcloud --version
+                        set -e
 
                         gcloud auth activate-service-account \
-                          --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+                          --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
 
-                        gcloud config set project ${GCP_PROJECT}
+                        gcloud config set project "$GCP_PROJECT"
 
-                        gcloud auth configure-docker --quiet
+                        gcloud auth configure-docker gcr.io --quiet
 
-                        docker build -t gcr.io/${GCP_PROJECT}/hotel-management-system:latest .
-                        docker push gcr.io/${GCP_PROJECT}/hotel-management-system:latest
+                        docker build -t $IMAGE_NAME:latest .
+                        docker push $IMAGE_NAME:latest
                     '''
                 }
             }
