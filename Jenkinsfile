@@ -2,31 +2,70 @@ pipeline {
     agent any
 
     environment {
-        GCP_PROJECT = 'tough-bindery-483312-t2'
-        REGION      = 'asia-south1'
-        REPO        = 'docker-repo'
-        IMAGE       = 'hotel-management-system'
+        GCP_PROJECT = "mlops-new-447207"
+        IMAGE_NAME  = "ml-project"
+        GCLOUD_PATH = "/var/jenkins_home/google-cloud-sdk/bin"
     }
 
     stages {
-        stage('Build & Push Docker Image') {
+
+        stage('Checkout') {
+            steps {
+                checkout scmGit(
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[
+                        credentialsId: 'github-token',
+                        url: 'https://github.com/data-guru0/MLOPS-COURSE-PROJECT-1.git'
+                    ]]
+                )
+            }
+        }
+
+        stage('Build & Push Docker Image (GCR)') {
             steps {
                 withCredentials([
                     file(credentialsId: 'gcp-key', variable: 'GOOGLE_APPLICATION_CREDENTIALS')
                 ]) {
                     sh '''
                         set -e
+                        export PATH=$PATH:${GCLOUD_PATH}
 
                         gcloud auth activate-service-account \
-                          --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+                          --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
 
-                        gcloud config set project $GCP_PROJECT
+                        gcloud config set project ${GCP_PROJECT}
 
-                        gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+                        gcloud auth configure-docker gcr.io --quiet
 
-                        docker build -t ${REGION}-docker.pkg.dev/${GCP_PROJECT}/${REPO}/${IMAGE}:latest .
+                        docker build \
+                          --pull \
+                          -t gcr.io/${GCP_PROJECT}/${IMAGE_NAME}:latest .
 
-                        docker push ${REGION}-docker.pkg.dev/${GCP_PROJECT}/${REPO}/${IMAGE}:latest
+                        docker push gcr.io/${GCP_PROJECT}/${IMAGE_NAME}:latest
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to Cloud Run') {
+            steps {
+                withCredentials([
+                    file(credentialsId: 'gcp-key', variable: 'GOOGLE_APPLICATION_CREDENTIALS')
+                ]) {
+                    sh '''
+                        set -e
+                        export PATH=$PATH:${GCLOUD_PATH}
+
+                        gcloud auth activate-service-account \
+                          --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
+
+                        gcloud config set project ${GCP_PROJECT}
+
+                        gcloud run deploy ${IMAGE_NAME} \
+                          --image gcr.io/${GCP_PROJECT}/${IMAGE_NAME}:latest \
+                          --platform managed \
+                          --region us-central1 \
+                          --allow-unauthenticated
                     '''
                 }
             }
