@@ -2,7 +2,8 @@ pipeline {
     agent any
 
     environment {
-        VENV_DIR = 'venv'
+        VENV_DIR    = 'venv'
+        GCP_PROJECT = 'tough-bindery-483312-t2'
     }
 
     stages {
@@ -22,6 +23,26 @@ pipeline {
                     pip install --upgrade pip setuptools
                     pip install -r requirements.txt
                 '''
+            }
+        }
+
+        stage('Build & Push Docker Image to GCR') {
+            steps {
+                withCredentials([file(credentialsId: 'gcp-key', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
+                    sh '''
+                        gcloud --version
+
+                        gcloud auth activate-service-account \
+                          --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+
+                        gcloud config set project ${GCP_PROJECT}
+
+                        gcloud auth configure-docker --quiet
+
+                        docker build -t gcr.io/${GCP_PROJECT}/hotel-management-system:latest .
+                        docker push gcr.io/${GCP_PROJECT}/hotel-management-system:latest
+                    '''
+                }
             }
         }
     }
