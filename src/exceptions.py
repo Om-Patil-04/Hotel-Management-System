@@ -1,4 +1,5 @@
 import sys
+import traceback
 
 class CustomException(Exception):
     def __init__(self, error_message: str, error_detail=None):
@@ -7,7 +8,7 @@ class CustomException(Exception):
 
     @staticmethod
     def get_detailed_error_message(error_message: str) -> str:
-        _, _, exc_tb = sys.exc_info()
+        _, _, exc_tb = traceback.sys.exc_info()
 
         if exc_tb is None:
             return error_message
