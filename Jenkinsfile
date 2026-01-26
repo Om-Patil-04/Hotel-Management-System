@@ -1,49 +1,86 @@
-pipeline {
+pipeline{
     agent any
 
     environment {
-        GCP_PROJECT = 'tough-bindery-483312-t2'
-        IMAGE_NAME  = "gcr.io/${GCP_PROJECT}/hotel-management-system"
+        VENV_DIR = 'venv'
+        GCP_PROJECT = "tough-bindery-483312-t2"
+        GCLOUD_PATH = "/var/jenkins_home/google-cloud-sdk/bin"
     }
 
-    stages {
-        stage('Checkout') {
-            steps {
-                git branch: 'main',
-                    credentialsId: 'GitHub-Token',
-                    url: 'https://github.com/Om-Patil-04/Hotel-Management-System.git'
+    stages{
+        stage('Cloning Github repo to Jenkins'){
+            steps{
+                script{
+                    echo 'Cloning Github repo to Jenkins............'
+                    checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[credentialsId: 'github-token', url: 'https://github.com/data-guru0/MLOPS-COURSE-PROJECT-1.git']])
+                }
             }
         }
 
-        stage('Build & Push Docker Image to GCR') {
-            steps {
-                withCredentials([
-                    file(credentialsId: 'gcp-key', variable: 'GOOGLE_APPLICATION_CREDENTIALS')
-                ]) {
+        stage('Setting up our Virtual Environment and Installing dependancies'){
+            steps{
+                script{
+                    echo 'Setting up our Virtual Environment and Installing dependancies............'
                     sh '''
-                        set -e
-
-                        gcloud auth activate-service-account \
-                          --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
-
-                        gcloud config set project "$GCP_PROJECT"
-
-                        gcloud auth configure-docker gcr.io --quiet
-
-                        docker build -t $IMAGE_NAME:latest .
-                        docker push $IMAGE_NAME:latest
+                    python -m venv ${VENV_DIR}
+                    . ${VENV_DIR}/bin/activate
+                    pip install --upgrade pip
+                    pip install -e .
                     '''
                 }
             }
         }
-    }
 
-    post {
-        success {
-            echo 'Docker image successfully pushed to GCR!'
+        stage('Building and Pushing Docker Image to GCR'){
+            steps{
+                withCredentials([file(credentialsId: 'gcp-key' , variable : 'GOOGLE_APPLICATION_CREDENTIALS')]){
+                    script{
+                        echo 'Building and Pushing Docker Image to GCR.............'
+                        sh '''
+                        export PATH=$PATH:${GCLOUD_PATH}
+
+
+                        gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
+
+                        gcloud config set project ${GCP_PROJECT}
+
+                        gcloud auth configure-docker --quiet
+
+                        docker build -t gcr.io/${GCP_PROJECT}/ml-project:latest .
+
+                        docker push gcr.io/${GCP_PROJECT}/ml-project:latest 
+
+                        '''
+                    }
+                }
+            }
         }
-        failure {
-            echo 'Pipeline failed. Check the logs for details.'
+
+
+        stage('Deploy to Google Cloud Run'){
+            steps{
+                withCredentials([file(credentialsId: 'gcp-key' , variable : 'GOOGLE_APPLICATION_CREDENTIALS')]){
+                    script{
+                        echo 'Deploy to Google Cloud Run.............'
+                        sh '''
+                        export PATH=$PATH:${GCLOUD_PATH}
+
+
+                        gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
+
+                        gcloud config set project ${GCP_PROJECT}
+
+                        gcloud run deploy ml-project \
+                            --image=gcr.io/${GCP_PROJECT}/ml-project:latest \
+                            --platform=managed \
+                            --region=us-central1 \
+                            --allow-unauthenticated
+                            
+                        '''
+                    }
+                }
+            }
         }
+        
     }
 }

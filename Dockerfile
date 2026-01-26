@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -6,18 +6,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    gcc \
-    g++ \
     libgomp1 \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
-RUN pip install --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+RUN pip install --no-cache-dir -e .
+
+RUN python pipeline/training_pipeline.py
+
 EXPOSE 5000
 
-CMD ["bash", "-c", "python pipeline/training_pipeline.py && python application.py"]
+CMD ["python", "application.py"]
