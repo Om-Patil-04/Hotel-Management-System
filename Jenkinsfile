@@ -8,7 +8,7 @@ pipeline {
     }
 
     stages {
-        stage('Build & Push Docker Image (FAST)') {
+        stage('Build & Push Docker Image') {
             steps {
                 withCredentials([
                     file(credentialsId: 'gcp-key', variable: 'GOOGLE_APPLICATION_CREDENTIALS')
