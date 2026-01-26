@@ -5,7 +5,7 @@ pipeline {
         GCP_PROJECT = 'tough-bindery-483312-t2'
         IMAGE       = 'hotel-management-system'
         TAG         = "${env.BUILD_NUMBER}"
-        REGION = 'asia-south1'
+        REGION      = 'asia-south1'
         SERVICE     = 'hotel-management-system'
     }
 
@@ -51,7 +51,8 @@ pipeline {
                           --image gcr.io/$GCP_PROJECT/$IMAGE:$TAG \
                           --region $REGION \
                           --platform managed \
-                          --allow-unauthenticated
+                          --allow-unauthenticated \
+                          --service-account om-patil@tough-bindery-483312-t2.iam.gserviceaccount.com
                     '''
                 }
             }
