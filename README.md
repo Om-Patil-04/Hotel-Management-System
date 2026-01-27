@@ -1,6 +1,6 @@
 # 🏨 Hotel Reservation Prediction – End-to-End ML Pipeline
 
-An end-to-end machine learning project that predicts hotel reservation outcomes using a clean, modular, and reproducible pipeline. Built with production practices—not notebook spaghetti.
+A production-ready machine learning pipeline that predicts hotel reservation cancellations using clean, modular code and reproducible workflows.
 
 ---
 
@@ -8,28 +8,28 @@ An end-to-end machine learning project that predicts hotel reservation outcomes 
 
 - **Language**: Python  
 - **Data Processing**: Pandas, NumPy  
-- **Modeling**: Scikit-learn, XGBoost  
+- **Modeling**: Scikit-learn, XGBoost, LightGBM  
 - **Experiment Tracking**: MLflow  
 - **Pipeline Orchestration**: Custom Python pipeline  
-- **Logging**: Python `logging` module  
+- **Logging**: Python `logging`  
 
 ---
 
 ## 📌 Problem Statement
 
-Hotel cancellations significantly impact revenue and operations.  
-This system predicts whether a reservation will be fulfilled or canceled, enabling hotels to:
+Hotel reservation cancellations create operational and revenue risks.  
+This system predicts whether a reservation will be canceled, helping hotels:
 
 - Reduce overbooking losses  
-- Improve dynamic pricing strategies  
+- Improve pricing strategies  
 - Optimize room allocation  
 
 **ML Task**: Binary Classification  
-**Target**: Reservation Canceled (Yes / No)
+**Target**: booking_status (Canceled / Not_Canceled)
 
 ---
 
-## 🧠 ML Workflow Overview
+## 🧠 ML Workflow
 
 ```
 Raw Data
@@ -38,71 +38,77 @@ Data Ingestion
    ↓
 Data Preprocessing
    ↓
-Feature Engineering
+Feature Selection
    ↓
 Model Training & Selection
    ↓
-Experiment Tracking (MLflow)
+MLflow Tracking
    ↓
-Best Model Serialization
+Best Model Saved
 ```
-
-Everything is code-driven. No manual steps.
 
 ---
 
-## 📁 Project Structure (Tracked Files Only)
+## 📁 Project Structure
 
 ```
 PROJECT/
-├── pipeline/
+├── artifacts/
+├── build/
+├── config/
 │   ├── __init__.py
-│   └── training_pipeline.py     # Main pipeline entry point
-│
-├── src/
-│   ├── __init__.py
-│   ├── data_ingestion.py        # Reads raw data
-│   ├── data_preprocessing.py    # Cleaning & feature engineering
-│   ├── model_training.py        # Training & evaluation
-│   ├── logger.py                # Centralized logging
-│   └── exceptions.py            # Custom exception handling
-│
+│   ├── config.yaml
+│   ├── model_params.py
+│   └── paths_config.py
+├── custom_jenkins/
+│   └── Dockerfile
+├── HotelReservationIO.egg-info/
+├── Logs/
+├── mlruns/
+├── models/
+│   ├── best_model/
+│   │   └── model.pkl
+│   └── selection_candidates/
+│       └── xgboost_model_artifact.joblib
 ├── notebooks/
 │   └── model_selection_and_training.ipynb
-│
+├── pipeline/
+│   ├── __init__.py
+│   └── training_pipeline.py
+├── src/
+│   ├── __init__.py
+│   ├── data_ingestion.py
+│   ├── data_preprocessing.py
+│   ├── model_training.py
+│   ├── logger.py
+│   └── exceptions.py
 ├── templates/
-│   └── index.html               # Optional frontend placeholder
-│
-├── config/                      # Configuration files (if any)
-├── utils/                       # Shared utilities
-│
-├── setup.py
-├── requirements.txt
+│   └── index.html
+├── utils/
+├── venv/
+├── .gitignore
+├── application.py
+├── Dockerfile
+├── Jenkinsfile
+├─�� mlflow.db
 ├── README.md
-└── .gitignore
+├── requirement-train.txt
+├── requirements.txt
+└── setup.py
 ```
 
 ---
 
-## ⚙️ Configuration Management
+## ⚙️ Configuration
 
-All paths, hyperparameters, and pipeline settings are controlled via configuration files.  
-This avoids hard-coded values and makes the pipeline environment-agnostic.
-
----
-
-## 🔁 Reproducibility
-
-- All datasets are reprocessed from raw sources  
-- Models are retrained deterministically  
-- No artifacts are committed to version control  
-- Results can be regenerated using a single command  
+All pipeline settings are driven through configuration files in `config/`.  
+This keeps the system portable and environment-agnostic.
 
 ---
 
-## 🚫 Ignored During Version Control
+## 🚫 Ignored Artifacts
 
-The following are intentionally excluded and regenerated automatically:
+Generated folders and files are excluded from version control:
 
 ```
 artifacts/
@@ -111,13 +117,9 @@ mlruns/
 Logs/
 build/
 *.egg-info/
+mlflow.db
+venv/
 ```
-
-This keeps the repository:
-
-- Lightweight  
-- Reproducible  
-- Reviewer-friendly  
 
 ---
 
@@ -126,7 +128,7 @@ This keeps the repository:
 ### 1️⃣ Clone the Repository
 ```bash
 git clone <your-repo-url>
-cd hotel-reservation-ml
+cd Hotel-Management-System
 ```
 
 ### 2️⃣ Create Virtual Environment
@@ -143,9 +145,7 @@ pip install -r requirements.txt
 
 ---
 
-## 🚀 Running the Training Pipeline
-
-Single command. No excuses.
+## 🚀 Run the Training Pipeline
 
 ```bash
 python pipeline/training_pipeline.py
@@ -156,57 +156,48 @@ This will:
 - Load raw data  
 - Preprocess features  
 - Train candidate models  
-- Track experiments via MLflow  
-- Save the best model locally  
-
-All outputs are generated automatically in ignored directories.
+- Track experiments with MLflow  
+- Save the best model  
 
 ---
 
-## 📊 Experiment Tracking (MLflow)
-
-MLflow is used to track:
-
-- Parameters  
-- Metrics  
-- Models  
-
-To view experiments:
+## 📊 MLflow UI
 
 ```bash
 mlflow ui
 ```
 
-Then open:  
-**http://localhost:5000**
+Open:
+
+```
+http://localhost:5000
+```
 
 ---
 
 ## 🧪 Model Development
 
-Exploratory analysis and model comparison are available in:
+Optional exploration is available in:
 
 ```
 notebooks/model_selection_and_training.ipynb
 ```
 
-This notebook is optional — the pipeline does **not** depend on it.
+The pipeline runs independently of notebooks.
 
 ---
 
-## 🧱 Engineering Highlights
+## ✅ Engineering Highlights
 
-✔ Modular architecture  
-✔ Clean separation of concerns  
-✔ Centralized logging & exception handling  
-✔ Reproducible training  
-✔ MLflow integration  
-✔ Production-ready pipeline pattern  
-
-This is how ML systems are built in real teams, not Kaggle demos.
+- Modular architecture  
+- Clean separation of concerns  
+- Centralized logging & exception handling  
+- Reproducible training  
+- MLflow integration  
+- Production-ready pipeline structure  
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+MIT License
