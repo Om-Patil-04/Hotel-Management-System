@@ -1,7 +1,9 @@
 import joblib
 import numpy as np
+import os
 from typing import Dict
 from config.paths_config import MODEL_OUTPUT_PATH
+from google.cloud import storage
 
 
 class PredictPipeline:
@@ -16,6 +18,10 @@ class PredictPipeline:
     
     def __init__(self):
         if not PredictPipeline._initialized:
+            if not os.path.exists(MODEL_OUTPUT_PATH):
+                print(f"Model not found at {MODEL_OUTPUT_PATH}, downloading from GCS...")
+                self._download_model_from_gcs()
+            
             artifact = joblib.load(MODEL_OUTPUT_PATH)
             
             self.model = artifact["model"]
@@ -26,9 +32,29 @@ class PredictPipeline:
             self.scaler = artifact.get("scaler", None)
             
             print(f"Loaded model: {self.model_name}")
-            print(f"Threshold  : {self.threshold}")
+            print(f"Threshold: {self.threshold}")
             
             PredictPipeline._initialized = True
+    
+    def _download_model_from_gcs(self):
+        try:
+            bucket_name = "hotel-management-models"
+            blob_name = "best_model/model.pkl"
+            
+            print(f"Downloading model from gs://{bucket_name}/{blob_name}...")
+            
+            client = storage.Client()
+            bucket = client.bucket(bucket_name)
+            blob = bucket.blob(blob_name)
+            
+            os.makedirs(os.path.dirname(MODEL_OUTPUT_PATH), exist_ok=True)
+            
+            blob.download_to_filename(MODEL_OUTPUT_PATH)
+            print(f"Model downloaded successfully to {MODEL_OUTPUT_PATH}")
+            
+        except Exception as e:
+            print(f"Error downloading model from GCS: {e}")
+            raise RuntimeError(f"Failed to download model: {e}")
     
     def predict(self, input_data: Dict[str, float]) -> Dict:
         X = np.array([input_data[col] for col in self.features]).reshape(1, -1)
@@ -104,30 +130,20 @@ class InputPreprocessor:
                 min_val=1, 
                 max_val=31
             ),
-            "no_of_week_nights": InputPreprocessor._safe_float(
-                raw_input.get("no_of_week_nights"), 
-                "no_of_week_nights", 
-                min_val=0
-            ),
-            "no_of_weekend_nights": InputPreprocessor._safe_float(
-                raw_input.get("no_of_weekend_nights"), 
-                "no_of_weekend_nights", 
-                min_val=0
+            "type_of_meal_plan": InputPreprocessor._encode_categorical(
+                raw_input.get("type_of_meal_plan"), 
+                "type_of_meal_plan", 
+                InputPreprocessor.MEAL_PLAN_MAP
             ),
             "market_segment_type": InputPreprocessor._encode_categorical(
-                raw_input.get("market_segment_type"),
-                InputPreprocessor.MARKET_SEGMENT_MAP,
-                "market_segment_type"
-            ),
-            "type_of_meal_plan": InputPreprocessor._encode_categorical(
-                raw_input.get("type_of_meal_plan"),
-                InputPreprocessor.MEAL_PLAN_MAP,
-                "type_of_meal_plan"
+                raw_input.get("market_segment_type"), 
+                "market_segment_type", 
+                InputPreprocessor.MARKET_SEGMENT_MAP
             ),
             "room_type_reserved": InputPreprocessor._encode_categorical(
-                raw_input.get("room_type_reserved"),
-                InputPreprocessor.ROOM_TYPE_MAP,
-                "room_type_reserved"
+                raw_input.get("room_type_reserved"), 
+                "room_type_reserved", 
+                InputPreprocessor.ROOM_TYPE_MAP
             )
         }
         
@@ -136,21 +152,20 @@ class InputPreprocessor:
     @staticmethod
     def _safe_float(value, field_name: str, min_val=None, max_val=None) -> float:
         try:
-            num = float(value)
-            
-            if min_val is not None and num < min_val:
+            val = float(value)
+            if min_val is not None and val < min_val:
                 raise ValueError(f"{field_name} must be >= {min_val}")
-            if max_val is not None and num > max_val:
+            if max_val is not None and val > max_val:
                 raise ValueError(f"{field_name} must be <= {max_val}")
-            
-            return num
-            
-        except (ValueError, TypeError):
-            raise ValueError(f"Invalid value for {field_name}: '{value}'. Must be a number.")
+            return val
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"Invalid value for {field_name}: {value}. Error: {e}")
     
     @staticmethod
-    def _encode_categorical(value, mapping: Dict, field_name: str) -> float:
+    def _encode_categorical(value: str, field_name: str, mapping: Dict) -> float:
         if value not in mapping:
-            valid_values = list(mapping.keys())
-            raise ValueError(f"Invalid {field_name}: '{value}'. Valid options: {valid_values}")
+            raise ValueError(
+                f"Invalid value '{value}' for {field_name}. "
+                f"Must be one of: {list(mapping.keys())}"
+            )
         return mapping[value]
