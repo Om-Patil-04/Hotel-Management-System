@@ -130,6 +130,16 @@ class InputPreprocessor:
                 min_val=1, 
                 max_val=31
             ),
+            "no_of_week_nights": InputPreprocessor._safe_float(
+                raw_input.get("no_of_week_nights"), 
+                "no_of_week_nights", 
+                min_val=0
+            ),
+            "no_of_weekend_nights": InputPreprocessor._safe_float(
+                raw_input.get("no_of_weekend_nights"), 
+                "no_of_weekend_nights", 
+                min_val=0
+            ),
             "type_of_meal_plan": InputPreprocessor._encode_categorical(
                 raw_input.get("type_of_meal_plan"), 
                 "type_of_meal_plan", 
