@@ -1,5 +1,4 @@
 steps:
-  # Build the Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args: 
       - 'build'
@@ -9,7 +8,6 @@ steps:
       - 'asia-south1-docker.pkg.dev/tough-bindery-483312-t2/hotel-management/hotel-management-system:latest'
       - '.'
   
-  # Push the Docker images
   - name: 'gcr.io/cloud-builders/docker'
     args: 
       - 'push'
@@ -23,5 +21,8 @@ steps:
 images:
   - 'asia-south1-docker.pkg.dev/tough-bindery-483312-t2/hotel-management/hotel-management-system:$BUILD_ID'
   - 'asia-south1-docker.pkg.dev/tough-bindery-483312-t2/hotel-management/hotel-management-system:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
 
 timeout: '1200s'
