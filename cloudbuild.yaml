@@ -1,0 +1,29 @@
+steps:
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'build'
+      - '-t'
+      - 'gcr.io/tough-bindery-483312-t2/hotel-management-system:$BUILD_ID'
+      - '-t'
+      - 'gcr.io/tough-bindery-483312-t2/hotel-management-system:latest'
+      - '.'
+  
+  # Push the Docker image to Google Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'push'
+      - 'gcr.io/tough-bindery-483312-t2/hotel-management-system:$BUILD_ID'
+  
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'push'
+      - 'gcr.io/tough-bindery-483312-t2/hotel-management-system:latest'
+
+# Specify the images to be stored in Container Registry
+images:
+  - 'gcr.io/tough-bindery-483312-t2/hotel-management-system:$BUILD_ID'
+  - 'gcr.io/tough-bindery-483312-t2/hotel-management-system:latest'
+
+# Optional: Configure timeout (default is 10 minutes)
+timeout: '1200s'
