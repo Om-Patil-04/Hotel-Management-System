@@ -24,3 +24,5 @@ mlruns/
 mlflow.db
 
 models/
+
+best_model/
