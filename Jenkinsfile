@@ -10,6 +10,20 @@ pipeline {
     }
 
     stages {
+
+        stage('Checkout Code') {
+            steps {
+                checkout scmGit(
+                    branches: [[name: '*/main']],
+                    extensions: [],
+                    userRemoteConfigs: [[
+                        credentialsId: 'github-token',
+                        url: 'https://github.com/Om-Patil-04/Hotel-Management-System'
+                    ]]
+                )
+            }
+        }
+
         stage('Build & Push Docker Image') {
             steps {
                 withCredentials([
@@ -17,7 +31,6 @@ pipeline {
                 ]) {
                     sh '''
                         set -e
-
                         gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
                         gcloud config set project $GCP_PROJECT
                         gcloud auth configure-docker --quiet
@@ -43,7 +56,6 @@ pipeline {
                 ]) {
                     sh '''
                         set -e
-
                         gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
                         gcloud config set project $GCP_PROJECT
 
