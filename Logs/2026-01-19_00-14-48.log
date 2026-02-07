@@ -1,0 +1,48 @@
+2026-01-19 00:14:49,805 - INFO - Successfully read the YAML file: config/config.yaml
+2026-01-19 00:14:49,805 - INFO - Data Ingestion initialized with bucket=ompatil, file=Hotel_Reservations.csv
+2026-01-19 00:14:49,805 - INFO - Data Ingestion process started
+2026-01-19 00:14:57,508 - INFO - File Hotel_Reservations.csv downloaded from GCP bucket ompatil to artifacts/raw\Hotel_Reservations.csv
+2026-01-19 00:14:57,508 - INFO - Starting the data splitting process
+2026-01-19 00:14:57,756 - INFO - Data split completed. Train: artifacts/raw\train.csv, Test: artifacts/raw\test.csv
+2026-01-19 00:14:57,759 - INFO - Data Ingestion process completed successfully
+2026-01-19 00:14:57,759 - INFO - Data Ingestion process finished
+2026-01-19 00:14:57,761 - INFO - Successfully read the YAML file: config/config.yaml
+2026-01-19 00:14:57,763 - INFO - Loading Data
+2026-01-19 00:14:57,812 - INFO - Loading Data
+2026-01-19 00:14:57,840 - INFO - Starting data processing step
+2026-01-19 00:14:57,876 - INFO - Starting data processing step
+2026-01-19 00:15:03,906 - INFO - Data processing pipeline completed successfully
+2026-01-19 00:15:05,292 - INFO - Model training pipeline started
+2026-01-19 00:15:05,292 - INFO - MLflow experiment started
+2026-01-19 00:15:05,318 - INFO - Logging training and testing datasets to MLflow
+2026-01-19 00:15:05,329 - INFO - Loading Data
+2026-01-19 00:15:05,368 - INFO - Loading Data
+2026-01-19 00:16:52,415 - INFO - LightGBM | CV ROC-AUC=0.9547 | Test ROC-AUC=0.9288 | Time=106.99s
+2026-01-19 00:17:06,340 - INFO - XGBoost | CV ROC-AUC=0.9426 | Test ROC-AUC=0.9042 | Time=13.91s
+2026-01-19 00:25:14,295 - INFO - RandomForest | CV ROC-AUC=0.9518 | Test ROC-AUC=0.9303 | Time=487.90s
+2026-01-19 00:27:48,913 - INFO - AdaBoost | CV ROC-AUC=0.9063 | Test ROC-AUC=0.8665 | Time=154.50s
+2026-01-19 00:27:49,559 - INFO - Best model selected: RandomForest | ROC-AUC=0.9303
+2026-01-19 00:27:49,565 - INFO - --------------------------------------------------
+2026-01-19 00:27:49,565 - INFO - MODEL SELECTION SUMMARY
+2026-01-19 00:27:49,565 - INFO - Best Algorithm        : RandomForest
+2026-01-19 00:27:49,565 - INFO - Selection Criterion   : Highest Test ROC-AUC
+2026-01-19 00:27:49,565 - INFO - CV ROC-AUC            : 0.9518
+2026-01-19 00:27:49,565 - INFO - Test ROC-AUC          : 0.9303
+2026-01-19 00:27:49,565 - INFO - Accuracy              : 0.8475
+2026-01-19 00:27:49,565 - INFO - Precision             : 0.9358
+2026-01-19 00:27:49,565 - INFO - Recall                : 0.8383
+2026-01-19 00:27:49,567 - INFO - F1-score              : 0.8843
+2026-01-19 00:27:49,567 - INFO - Optimal Threshold     : 0.6528
+2026-01-19 00:27:49,567 - INFO - --------------------------------------------------
+2026-01-19 00:27:49,567 - INFO - Best model hyperparameters
+2026-01-19 00:27:49,567 - INFO - RandomForest | max_depth = 19
+2026-01-19 00:27:49,567 - INFO - RandomForest | max_features = sqrt
+2026-01-19 00:27:49,567 - INFO - RandomForest | min_samples_leaf = 1
+2026-01-19 00:27:49,567 - INFO - RandomForest | min_samples_split = 8
+2026-01-19 00:27:49,567 - INFO - RandomForest | n_estimators = 620
+2026-01-19 00:27:49,567 - INFO - Logging per-model metrics and parameters to MLflow
+2026-01-19 00:27:50,441 - INFO - Logging best model metrics explicitly to MLflow
+2026-01-19 00:27:50,518 - INFO - Logging feature list used for training
+2026-01-19 00:27:50,524 - INFO - Persisting trained model | Algorithm=RandomForest | Test ROC-AUC=0.9303
+2026-01-19 00:28:01,592 - INFO - Model successfully stored and registered in MLflow | Registered Name=hotel_booking_cancellation_model | Algorithm=RandomForest
+2026-01-19 00:28:01,592 - INFO - Model training pipeline finished successfully
