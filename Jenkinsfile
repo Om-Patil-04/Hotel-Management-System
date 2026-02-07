@@ -38,18 +38,17 @@ pipeline {
             }
         }
 
-        stage('Build & Push Docker Image') {
+        stage('Build & Push Image (Cloud Build)') {
             steps {
                 sh '''
-                    docker pull gcr.io/$GCP_PROJECT/$IMAGE:latest || true
+                    gcloud builds submit \
+                      --tag gcr.io/$GCP_PROJECT/$IMAGE:$TAG \
+                      .
 
-                    docker build \
-                      --cache-from gcr.io/$GCP_PROJECT/$IMAGE:latest \
-                      -t gcr.io/$GCP_PROJECT/$IMAGE:$TAG \
-                      -t gcr.io/$GCP_PROJECT/$IMAGE:latest .
-
-                    docker push gcr.io/$GCP_PROJECT/$IMAGE:$TAG
-                    docker push gcr.io/$GCP_PROJECT/$IMAGE:latest
+                    gcloud container images add-tag \
+                      --quiet \
+                      gcr.io/$GCP_PROJECT/$IMAGE:$TAG \
+                      gcr.io/$GCP_PROJECT/$IMAGE:latest
                 '''
             }
         }
