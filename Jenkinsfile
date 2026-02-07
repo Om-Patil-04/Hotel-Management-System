@@ -8,7 +8,7 @@ pipeline {
         REGION      = 'asia-south1'
         SERVICE     = 'hotel-management-system'
     }
-
+ 
     stages {
 
         stage('Checkout Code') {
