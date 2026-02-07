@@ -42,13 +42,9 @@ pipeline {
             steps {
                 sh '''
                     gcloud builds submit \
-                      --tag gcr.io/$GCP_PROJECT/$IMAGE:$TAG \
+                      --config=cloudbuild.yaml \
+                      --project=$GCP_PROJECT \
                       .
-
-                    gcloud container images add-tag \
-                      --quiet \
-                      gcr.io/$GCP_PROJECT/$IMAGE:$TAG \
-                      gcr.io/$GCP_PROJECT/$IMAGE:latest
                 '''
             }
         }
@@ -57,7 +53,7 @@ pipeline {
             steps {
                 sh '''
                     gcloud run deploy $SERVICE \
-                      --image gcr.io/$GCP_PROJECT/$IMAGE:$TAG \
+                      --image gcr.io/$GCP_PROJECT/$IMAGE:latest \
                       --region $REGION \
                       --platform managed \
                       --allow-unauthenticated \
