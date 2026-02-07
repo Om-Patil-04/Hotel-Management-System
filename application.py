@@ -1,42 +1,17 @@
-import joblib
-import numpy as np
-from flask import Flask, render_template, request
-from config.paths_config import MODEL_OUTPUT_PATH
 import os
+import warnings
+from flask import Flask, render_template, request, jsonify
+from pydantic import ValidationError
+from src.pipeline.predict_pipeline import PredictPipeline, InputPreprocessor
+from src.utils.prediction_logger import prediction_logger
+from src.schemas.input_schema import BookingInput
+
+warnings.filterwarnings("ignore", message=".*development server.*")
 
 app = Flask(__name__)
 
-artifact = joblib.load(MODEL_OUTPUT_PATH)
+pipeline = PredictPipeline()
 
-model = artifact["model"]
-threshold = artifact["threshold"]
-features = artifact["features"]
-model_name = artifact["model_name"]
-
-print(f"Loaded model: {model_name}")
-print(f"Threshold  : {threshold}")
-
-MEAL_PLAN_MAP = {
-    "Breakfast Only": 0.0,
-    "Breakfast + Dinner": 1.0,
-    "All Meals": 3.0,
-    "No Meal Plan": 0.0
-}
-
-MARKET_SEGMENT_MAP = {
-    "Online": 4.0,
-    "Offline": 3.0,
-    "Corporate": 2.0,
-    "Aviation": 1.0,
-    "Complementary": 0.0
-}
-
-ROOM_TYPE_MAP = {
-    "Room Type 1": 0.0,
-    "Room Type 2": 1.0,
-    "Room Type 3": 2.0,
-    "Room Type 4": 3.0
-}
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -46,29 +21,19 @@ def index():
 
     if request.method == "POST":
         try:
-            input_data = {
-                "lead_time": float(request.form.get("lead_time", 0)),
-                "no_of_special_requests": float(request.form.get("no_of_special_requests", 0)),
-                "avg_price_per_room": float(request.form.get("avg_price_per_room", 0)),
-                "market_segment_type": MARKET_SEGMENT_MAP.get(request.form.get("market_segment_type", ""), 0.0),
-                "arrival_month": float(request.form.get("arrival_month", 1)),
-                "arrival_date": float(request.form.get("arrival_date", 1)),
-                "no_of_week_nights": float(request.form.get("no_of_week_nights", 0)),
-                "no_of_weekend_nights": float(request.form.get("no_of_weekend_nights", 0)),
-                "type_of_meal_plan": MEAL_PLAN_MAP.get(request.form.get("type_of_meal_plan", ""), 0.0),
-                "room_type_reserved": ROOM_TYPE_MAP.get(request.form.get("room_type_reserved", ""), 0.0),
-            }
-
-            X = np.array([input_data[col] for col in features]).reshape(1, -1)
-
-            proba_not_canceled = model.predict_proba(X)[0, 1]
-            prediction = int(proba_not_canceled >= threshold)
-
-            prediction_result = "Not Canceled" if prediction else "Canceled"
-            probability = round(proba_not_canceled * 100, 2)
-
+            processed_input = InputPreprocessor.validate_and_encode(request.form.to_dict())
+            result = pipeline.predict(processed_input)
+            
+            prediction_result = result["prediction"]
+            probability = result["probability_percent"]
+            
+            prediction_logger.log_prediction(request.form.to_dict(), result, source="web")
+            
+        except ValueError as e:
+            error_message = f"Validation Error: {str(e)}"
+            
         except Exception as e:
-            error_message = str(e)
+            error_message = f"Prediction Error: {str(e)}"
 
     return render_template(
         "index.html",
@@ -77,6 +42,65 @@ def index():
         error=error_message
     )
 
+
+@app.route("/api/predict", methods=["POST"])
+def api_predict():
+    try:
+        booking_input = BookingInput(**request.json)
+        raw_dict = booking_input.dict()
+        processed_input = InputPreprocessor.validate_and_encode(raw_dict)
+        result = pipeline.predict(processed_input)
+        
+        prediction_logger.log_prediction(raw_dict, result, source="api")
+        
+        return jsonify({
+            "success": True,
+            "data": result
+        }), 200
+        
+    except ValidationError as e:
+        return jsonify({
+            "success": False,
+            "error": "Validation error",
+            "details": e.errors()
+        }), 400
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": "Internal server error",
+            "details": str(e)
+        }), 500
+
+
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({
+        "status": "healthy",
+        "model": pipeline.model_name,
+        "threshold": pipeline.threshold,
+        "features": pipeline.features
+    }), 200
+
+
+@app.route("/api/info", methods=["GET"])
+def model_info():
+    return jsonify({
+        "model_name": pipeline.model_name,
+        "threshold": pipeline.threshold,
+        "features": pipeline.features,
+        "has_encoders": pipeline.encoders is not None,
+        "has_scaler": pipeline.scaler is not None
+    }), 200
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
+    debug = os.environ.get("DEBUG", "False").lower() == "true"
+    
+    print(f"\nStarting Hotel Booking Prediction Service")
+    print(f"Model: {pipeline.model_name}")
+    print(f"Threshold: {pipeline.threshold}")
+    print(f"Server: http://127.0.0.1:{port}\n")
+    
+    app.run(host="0.0.0.0", port=port, debug=debug)
