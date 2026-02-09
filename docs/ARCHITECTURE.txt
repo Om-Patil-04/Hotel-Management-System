@@ -1,0 +1,732 @@
+================================================================================
+                      HOTEL MANAGEMENT SYSTEM
+                 CI/CD & DEPLOYMENT ARCHITECTURE
+================================================================================
+
+================================================================================
+                           OVERVIEW DIAGRAM
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│  Developer  ──(git push)──>  GitHub Repository                              │
+│                                     │                                        │
+│                                     │ (webhook)                              │
+│                                     ▼                                        │
+│                              Jenkins Server                                  │
+│                                     │                                        │
+│                                     │ (trigger)                              │
+│                                     ▼                                        │
+│                            Cloud Build Service                               │
+│                                     │                                        │
+│                         ┌───────────┴───────────┐                           │
+│                         │                       │                           │
+│                         ▼                       ▼                           │
+│                 Artifact Registry         Cloud Run Service                 │
+│                         │                       │                           │
+│                         └───────────┬───────────┘                           │
+│                                     │                                        │
+│                                     │ (runtime)                              │
+│                                     ▼                                        │
+│                            Cloud Storage (GCS)                               │
+│                             (ML Model Storage)                               │
+│                                     │                                        │
+│                                     ▼                                        │
+│                                End Users                                     │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                        DETAILED COMPONENT ARCHITECTURE
+================================================================================
+
+1. SOURCE CODE REPOSITORY
+================================================================================
+Repository: Om-Patil-04/Hotel-Management-System
+Platform: GitHub
+
+Structure:
+├── application.py              (Flask application entry point)
+├── Dockerfile                  (Container image definition)
+├── requirements.txt            (Python dependencies)
+├── Jenkinsfile                 (CI/CD pipeline definition)
+├── cloudbuild.yaml             (Cloud Build configuration)
+├── .gcloudignore               (Files to exclude from deployment)
+├── src/
+│   ├── pipeline/
+│   │   └── predict_pipeline.py (ML inference pipeline)
+│   ├── utils/
+│   │   └── prediction_logger.py (Logging utility)
+│   └── schemas/
+│       └── input_schema.py     (Input validation schemas)
+├── templates/
+│   └── index.html              (Web UI template)
+└── config/
+    └── paths_config.py         (Configuration paths)
+
+
+2. CI/CD SERVER (JENKINS)
+================================================================================
+Platform: Google Compute Engine
+Instance Type: e2-medium
+Region: asia-south1
+OS: Ubuntu 20.04 LTS
+
+Configuration:
+├── Jenkins Version: 2.x LTS
+├── Java Version: OpenJDK 11
+├── Service Account: jenkins-sa@PROJECT_ID.iam.gserviceaccount.com
+└── Installed Plugins:
+    ├── Google Cloud Build
+    ├── GitHub Integration
+    ├── Pipeline
+    └── Credentials Binding
+
+Pipeline Stages:
+1. Checkout: Clone GitHub repository
+2. Build: Trigger Google Cloud Build
+3. Deploy: Deploy to Cloud Run
+4. Verify: Health check validation
+
+
+3. BUILD SERVICE (GOOGLE CLOUD BUILD)
+================================================================================
+Service: Cloud Build API
+Region: global
+
+Build Steps:
+Step 1: Build Docker Image
+    - Command: docker build
+    - Context: Repository root
+    - Output: Docker image
+
+Step 2: Tag Docker Image
+    - Format: asia-south1-docker.pkg.dev/PROJECT_ID/REPO/IMAGE:TAG
+    - Tags: latest, commit-sha, timestamp
+
+Step 3: Push to Artifact Registry
+    - Destination: asia-south1-docker.pkg.dev
+
+Step 4: Deploy to Cloud Run
+    - Service: hotel-management-system
+    - Region: asia-south1
+    - Platform: managed
+
+
+4. CONTAINER REGISTRY (ARTIFACT REGISTRY)
+================================================================================
+Registry: asia-south1-docker.pkg.dev
+Format: Docker
+Location: asia-south1
+
+Repository Structure:
+└── tough-bindery-483312-t2/
+    └── hotel-management/
+        └── hotel-management-system:
+            ├── latest
+            ├── v1.0.0
+            └── commit-abc123
+
+
+5. CONTAINER RUNTIME (GOOGLE CLOUD RUN)
+================================================================================
+Service Name: hotel-management-system
+Region: asia-south1
+Platform: Managed
+
+Service Configuration:
+├── CPU: 1 vCPU
+├── Memory: 512 MB
+├── Max Instances: 100
+├── Min Instances: 0
+├── Timeout: 300 seconds
+├── Concurrency: 80 requests/instance
+├── Port: 8080
+└── Ingress: Allow all traffic
+
+Container Structure:
+┌─────────────────────────────────────────────────────────────┐
+│ Cloud Run Container Instance                                │
+│                                                             │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ Gunicorn WSGI Server (Port 8080)                     │   │
+│  │ ├── Workers: 1                                       │   │
+│  │ ├── Timeout: 120 seconds                            │   │
+│  │ ├── Preload: True                                   │   │
+│  │ └── Bind: 0.0.0.0:8080                              │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ Flask Application                                    │   │
+│  │ ├── Framework: Flask 3.1.0                          │   │
+│  │ ├── Python: 3.10                                    │   │
+│  │ └── Routes:                                         │   │
+│  │     ├── GET/POST /                                  │   │
+│  │     ├── GET /health                                 │   │
+│  │     ├── POST /api/predict                           │   │
+│  │     └── GET /api/info                               │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ ML Pipeline Components                               │   │
+│  │ ├── PredictPipeline (Singleton)                     │   │
+│  │ │   ├── Model: RandomForest Classifier             │   │
+│  │ │   ├── Threshold: 0.6527746612570925              │   │
+│  │ │   ├── Scaler: StandardScaler                     │   │
+│  │ │   └── Features: 10 input features                │   │
+│  │ │                                                   │   │
+│  │ └── InputPreprocessor                               │   │
+│  │     ├── Validation: Pydantic schemas                │   │
+│  │     ├── Encoding: Categorical mapping              │   │
+│  │     └── Normalization: Float conversion            │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+
+
+6. MODEL STORAGE (GOOGLE CLOUD STORAGE)
+================================================================================
+Bucket Name: hotel-management-models
+Location: asia-south1
+Storage Class: Standard
+Size: 135.6 MB
+
+Structure:
+└── best_model/
+    └── model.pkl
+
+Access:
+├── Service Account: cloud-run-sa@PROJECT_ID.iam.gserviceaccount.com
+├── Permission: Storage Object Viewer
+└── Download: On container startup if not cached
+
+
+7. CONTAINER FILESYSTEM
+================================================================================
+Base Image: python:3.10-slim
+Working Directory: /app
+
+Runtime Directories:
+├── /app/models/best_model/        (Downloaded ML model)
+├─�� /app/logs/predictions/         (Prediction logs)
+└── /app/templates/                (HTML templates)
+
+
+================================================================================
+                            DATA FLOW SEQUENCE
+================================================================================
+
+REQUEST FLOW:
+-------------
+1. User Request
+   └── Browser sends HTTPS request to Cloud Run URL
+
+2. Load Balancer
+   └── Cloud Run routes request to available container instance
+
+3. Container Startup (if cold start)
+   ├── Gunicorn starts with --preload
+   ├── Flask app initializes
+   ├── PredictPipeline.__init__() executes
+   ├── Check if model exists at /app/models/best_model/model.pkl
+   ├── If not exists: Download from gs://hotel-management-models/best_model/
+   ├── Load model with joblib.load()
+   └── Ready to serve requests
+
+4. Request Processing
+   ├── Gunicorn receives request
+   ├── Routes to Flask application
+   ├── Flask calls appropriate route handler
+   ├── InputPreprocessor validates and encodes input
+   ├── PredictPipeline.predict() processes data
+   ├── Model generates prediction and probability
+   └── Response returned to user
+
+5. Logging
+   └── Prediction logged to /app/logs/predictions/YYYYMMDD.jsonl
+
+
+PREDICTION FLOW:
+----------------
+User Input (Web Form or API)
+    ↓
+InputPreprocessor.validate_and_encode()
+    ├── lead_time (float, ≥0)
+    ├── no_of_special_requests (float, 0-10)
+    ├── avg_price_per_room (float, ≥0)
+    ├── arrival_month (int, 1-12)
+    ├── arrival_date (int, 1-31)
+    ├── no_of_week_nights (float, ≥0)
+    ├── no_of_weekend_nights (float, ≥0)
+    ├── type_of_meal_plan (categorical → float)
+    ├── market_segment_type (categorical → float)
+    └── room_type_reserved (categorical → float)
+    ↓
+Encoded Feature Vector (10 features)
+    ↓
+StandardScaler.transform() (if scaler exists)
+    ↓
+RandomForestClassifier.predict_proba()
+    ↓
+Apply Threshold (0.652)
+    ↓
+Return Prediction
+    ├── prediction: "Not Canceled" or "Canceled"
+    ├── prediction_label: 1 or 0
+    ├── probability: float (0.0 to 1.0)
+    ├── probability_percent: float (0 to 100)
+    ├── threshold: 0.6527746612570925
+    └── model_name: "RandomForest"
+
+
+================================================================================
+                          DEPLOYMENT WORKFLOW
+================================================================================
+
+STEP 1: CODE COMMIT
+--------------------
+Developer → git add . → git commit -m "message" → git push origin main
+    ↓
+GitHub Repository Updated
+    ↓
+Webhook Triggered to Jenkins
+
+
+STEP 2: JENKINS PIPELINE EXECUTION
+-----------------------------------
+Jenkins receives webhook
+    ↓
+Execute Jenkinsfile:
+    Stage 1: Checkout
+        └── Clone repository from GitHub
+    
+    Stage 2: Build and Deploy
+        ├── Authenticate to GCP using service account
+        ├── Trigger gcloud builds submit
+        └── Execute cloudbuild.yaml
+    
+    Stage 3: Verify
+        └── Check deployment status
+
+
+STEP 3: CLOUD BUILD EXECUTION
+------------------------------
+Cloud Build receives trigger
+    ↓
+Execute cloudbuild.yaml:
+    Step 1: Build Docker Image
+        └── docker build -t IMAGE_NAME .
+    
+    Step 2: Push to Artifact Registry
+        └── docker push asia-south1-docker.pkg.dev/PROJECT/REPO/IMAGE:TAG
+    
+    Step 3: Deploy to Cloud Run
+        └── gcloud run deploy hotel-management-system \
+                --image IMAGE_NAME \
+                --region asia-south1 \
+                --platform managed \
+                --allow-unauthenticated
+
+
+STEP 4: CLOUD RUN DEPLOYMENT
+-----------------------------
+Cloud Run receives deployment request
+    ↓
+Create new revision
+    ├── Pull image from Artifact Registry
+    ├── Create container instances
+    ├── Run health checks
+    └── Route traffic to new revision (100%)
+    ↓
+Old revision scaled down
+    ↓
+Deployment complete
+
+
+STEP 5: CONTAINER INITIALIZATION
+---------------------------------
+Container starts
+    ↓
+Execute CMD from Dockerfile:
+    gunicorn --bind 0.0.0.0:8080 \
+             --workers 1 \
+             --timeout 120 \
+             --preload \
+             --access-logfile - \
+             application:app
+    ↓
+Gunicorn with --preload:
+    ├── Import application module
+    ├── Execute: pipeline = PredictPipeline()
+    ├── PredictPipeline.__init__() runs
+    ├── Check: os.path.exists(MODEL_OUTPUT_PATH)
+    ├── If False: _download_model_from_gcs()
+    │   ├── Connect to GCS
+    │   ├── Download model.pkl (135.6 MB)
+    │   └── Save to /app/models/best_model/model.pkl
+    ├── Load model: joblib.load(MODEL_OUTPUT_PATH)
+    ├── Extract model components
+    └── Print: "Loaded model: RandomForest"
+    ↓
+Fork worker processes
+    ↓
+Workers inherit loaded model (memory shared)
+    ↓
+Container ready to serve requests
+
+
+================================================================================
+                            API SPECIFICATION
+================================================================================
+
+ENDPOINT: GET /
+----------------
+Description: Web UI for booking prediction
+Method: GET
+Response: HTML page with form
+
+
+ENDPOINT: POST /
+----------------
+Description: Submit booking form for prediction
+Method: POST
+Content-Type: application/x-www-form-urlencoded
+Request Body:
+    lead_time: string
+    no_of_special_requests: string
+    avg_price_per_room: string
+    arrival_month: string
+    arrival_date: string
+    no_of_week_nights: string
+    no_of_weekend_nights: string
+    type_of_meal_plan: string (dropdown)
+    market_segment_type: string (dropdown)
+    room_type_reserved: string (dropdown)
+
+Response: HTML page with prediction result
+
+
+ENDPOINT: GET /health
+----------------
+Description: Health check and model status
+Method: GET
+Response:
+{
+    "status": "healthy",
+    "model": "RandomForest",
+    "threshold": 0.6527746612570925,
+    "features": ["lead_time", "no_of_special_requests", ...]
+}
+
+
+ENDPOINT: POST /api/predict
+----------------
+Description: API endpoint for predictions
+Method: POST
+Content-Type: application/json
+Request Body:
+{
+    "lead_time": 120.0,
+    "no_of_special_requests": 2.0,
+    "avg_price_per_room": 85.0,
+    "market_segment_type": "Online",
+    "arrival_month": 6,
+    "arrival_date": 15,
+    "no_of_week_nights": 2.0,
+    "no_of_weekend_nights": 1.0,
+    "type_of_meal_plan": "Breakfast Only",
+    "room_type_reserved": "Room Type 1"
+}
+
+Response (Success):
+{
+    "success": true,
+    "data": {
+        "model_name": "RandomForest",
+        "prediction": "Not Canceled",
+        "prediction_label": 1,
+        "probability": 0.75,
+        "probability_percent": 75.0,
+        "threshold": 0.6527746612570925
+    }
+}
+
+Response (Error):
+{
+    "success": false,
+    "error": "Validation error",
+    "details": [...]
+}
+
+
+ENDPOINT: GET /api/info
+----------------
+Description: Model metadata
+Method: GET
+Response:
+{
+    "model_name": "RandomForest",
+    "threshold": 0.6527746612570925,
+    "features": ["lead_time", "no_of_special_requests", ...],
+    "has_encoders": false,
+    "has_scaler": true
+}
+
+
+================================================================================
+                          TECHNOLOGY STACK
+================================================================================
+
+LAYER                  TECHNOLOGY                VERSION
+--------------------------------------------------------------------------------
+Frontend               HTML/CSS/JavaScript       ES6
+Backend Framework      Flask                     3.1.0
+WSGI Server            Gunicorn                  25.0.3
+Programming Language   Python                    3.10
+ML Framework           scikit-learn              1.7.2
+Model Serialization    joblib                    1.4.2
+Data Validation        Pydantic                  2.10.6
+Containerization       Docker                    24.x
+Base Image             python:3.10-slim          Debian 12
+CI/CD                  Jenkins                   2.x LTS
+Build Service          Google Cloud Build        Latest
+Registry               Google Artifact Registry  Latest
+Hosting                Google Cloud Run          Latest
+Storage                Google Cloud Storage      Latest
+Version Control        Git/GitHub                Latest
+Cloud Platform         Google Cloud Platform     Latest
+
+
+================================================================================
+                        SECURITY ARCHITECTURE
+================================================================================
+
+AUTHENTICATION & AUTHORIZATION
+-------------------------------
+1. Service Account for Jenkins
+   ├── Account: jenkins-sa@PROJECT_ID.iam.gserviceaccount.com
+   ├── Roles:
+   │   ├── Cloud Build Editor
+   │   ├── Cloud Run Admin
+   │   └── Service Account User
+   └── Key: Stored in Jenkins credentials
+
+2. Service Account for Cloud Run
+   ├── Account: cloud-run-sa@PROJECT_ID.iam.gserviceaccount.com
+   ├── Roles:
+   │   └── Storage Object Viewer (for GCS access)
+   └── Attached to Cloud Run service
+
+3. IAM Permissions
+   └── Principle of least privilege applied
+
+
+NETWORK SECURITY
+----------------
+1. HTTPS Only
+   ├── Cloud Run enforces HTTPS
+   └── Auto-managed SSL certificates
+
+2. Ingress Control
+   ├── Current: Allow all traffic
+   └── Can be restricted to VPC or internal only
+
+3. Egress Control
+   └── Container can access: GCS, Artifact Registry
+
+
+APPLICATION SECURITY
+--------------------
+1. Input Validation
+   ├── Pydantic schemas for API requests
+   └── Flask form validation for web requests
+
+2. Error Handling
+   ├── Try-catch blocks for all operations
+   └── No sensitive data in error messages
+
+3. Dependency Security
+   └── Requirements pinned to specific versions
+
+
+SECRETS MANAGEMENT
+------------------
+1. Service Account Keys
+   └── Stored in Jenkins credentials store
+
+2. Environment Variables
+   └── Managed by Cloud Run
+
+3. No secrets in code
+   └── All sensitive data externalized
+
+
+================================================================================
+                       MONITORING & LOGGING
+================================================================================
+
+CLOUD RUN METRICS
+-----------------
+├── Request Count (per minute)
+├── Request Latency (p50, p95, p99)
+├── Container Instance Count
+├── CPU Utilization (%)
+├── Memory Utilization (MB)
+├── Billable Container Time
+└── Error Rate (4xx, 5xx)
+
+
+CLOUD LOGGING
+-------------
+├── Container Logs
+│   ├── stdout (application logs)
+│   └── stderr (error logs)
+├── Request Logs
+│   ├── HTTP method
+│   ├── URL path
+│   ├── Status code
+│   ├── Response time
+│   └── User agent
+└── System Logs
+    ├── Container lifecycle events
+    ├── Health check results
+    └── Scaling events
+
+
+APPLICATION LOGS
+----------------
+Location: /app/logs/predictions/
+Format: JSON Lines (.jsonl)
+Structure:
+{
+    "timestamp": "2026-02-07T19:00:00.000000",
+    "source": "web" or "api",
+    "input": {...},
+    "output": {...}
+}
+
+Note: Ephemeral storage, logs lost on container restart
+
+
+MONITORING BEST PRACTICES
+--------------------------
+1. Set up alerting policies for:
+   ├── Error rate > 5%
+   ├── Latency p95 > 2 seconds
+   └── Container crashes
+
+2. Create dashboard for:
+   ├── Request rate
+   ├── Latency distribution
+   └── Resource utilization
+
+3. Enable Cloud Trace for distributed tracing
+
+
+================================================================================
+                         COST OPTIMIZATION
+================================================================================
+
+CLOUD RUN
+---------
+├── Pricing Model: Pay-per-use
+├── Charged for:
+│   ├── Request count
+│   ├── Container instance time
+│   ├── CPU allocation
+│   └── Memory allocation
+└── Cost Saving:
+    ├── Scale to zero when idle
+    └── Right-size CPU and memory
+
+
+CLOUD STORAGE
+--------------
+├── Pricing: Standard storage class
+├── Size: 135.6 MB
+├── Cost: Negligible (~$0.02/month)
+└── Downloads charged per GB
+
+
+ARTIFACT REGISTRY
+------------------
+├── Storage: Docker images
+├── Size: ~500 MB per image
+└── Cleanup: Delete old images regularly
+
+
+CLOUD BUILD
+------------
+├── First 120 build-minutes/day: Free
+└── After: $0.003 per build-minute
+
+
+================================================================================
+                    TROUBLESHOOTING GUIDE
+================================================================================
+
+ISSUE: Service Unavailable
+---------------------------
+1. Check Cloud Run logs for errors
+2. Verify container starts successfully
+3. Check health endpoint: curl SERVICE_URL/health
+4. Verify model downloaded from GCS
+5. Check timeout settings
+
+
+ISSUE: Model Not Loading
+-------------------------
+1. Verify GCS bucket exists
+2. Check service account has Storage Object Viewer role
+3. Verify model path: gs://hotel-management-models/best_model/model.pkl
+4. Check container has internet access
+5. Increase timeout if download is slow
+
+
+ISSUE: Prediction Errors
+-------------------------
+1. Validate input format matches schema
+2. Check all required fields are provided
+3. Verify categorical values are in allowed list
+4. Check numeric ranges
+5. Review application logs
+
+
+ISSUE: Build Failures
+----------------------
+1. Check Dockerfile syntax
+2. Verify all dependencies in requirements.txt
+3. Check Cloud Build service account permissions
+4. Review Cloud Build logs
+5. Verify Artifact Registry repository exists
+
+
+ISSUE: Deployment Failures
+---------------------------
+1. Check Cloud Run service exists
+2. Verify region matches
+3. Check image exists in Artifact Registry
+4. Verify Jenkins service account permissions
+5. Review Cloud Build logs
+
+
+================================================================================
+                         FUTURE ENHANCEMENTS
+================================================================================
+
+1. Implement model versioning
+2. Add A/B testing for multiple models
+3. Implement request caching (Redis/Memorystore)
+4. Add authentication for API endpoints
+5. Implement rate limiting
+6. Add model monitoring and drift detection
+7. Implement CI/CD for model retraining
+8. Add integration tests in Jenkins pipeline
+9. Implement blue-green deployments
+10. Add custom domain with Cloud Load Balancer
+
+
+================================================================================
+                              END OF DOCUMENT
+================================================================================
